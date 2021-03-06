@@ -514,4 +514,30 @@ public class PitServiceImplTest {
 				.forEach(i -> assertEquals(expectedBoard[i], boardAfterMove[i], "Failed checking pit " + i));
 		verify(gameService).finish(gameId, 36, 15);
 	}
+
+	@Test
+	public void testMoveResponse() throws ValidationException {
+		long gameId = RandomUtils.nextLong();
+		int pitId = 13;
+		int[] currentBoard = {6, 6, 6, 6, 6, 10, 0, 6, 6, 6, 6, 6, 10, 0};
+		GameDTO game = TestUtils.getRandomGameDTO();
+		when(gameService.getNonFinishedById(gameId)).thenReturn(game);
+		Board board = TestUtils.getRandomBoard();
+		board.setPits(currentBoard);
+		board.setPitLastMove(null);
+		board.setStonesLastMove(null);
+		when(boardService.getLatestBoard(gameId)).thenReturn(board);
+		Board newBoard = TestUtils.getRandomBoard();
+		ArgumentCaptor<int[]> captor = ArgumentCaptor.forClass(int[].class);
+		when(boardService.addBoardToGame(eq(gameId), eq(pitId - 1), eq(10), captor.capture())).thenReturn(newBoard);
+		GameStatusDTO result = service.move(gameId, pitId);
+		assertNotNull(result);
+		int[] boardAfterMove = captor.getValue();
+		int[] expectedBoard = {7, 7, 7, 7, 7, 11, 0, 7, 7, 7, 6, 6, 0, 1};
+		IntStream.range(0, KalahConstants.BOARD_SIZE)
+				.forEach(i -> assertEquals(expectedBoard[i], boardAfterMove[i], "Failed checking pit " + i));
+		verify(gameService, never()).finish(anyLong(), anyInt(), anyInt());
+		IntStream.range(0, KalahConstants.BOARD_SIZE)
+				.forEach(i -> assertEquals(String.valueOf(expectedBoard[i]), result.getStatus().get(i + 1)));
+	}
 }

@@ -53,27 +53,58 @@ public class PitServiceImpl implements PitService {
 	 * @throws ValidationException in case the movement is not valid
 	 */
 	private void validatePitMove(Board currentBoard, int actualPitMove) throws ValidationException {
-		// Pit not valid
-		if (!KalahConstants.VALID_PIT_MOVEMENTS.contains(actualPitMove)) {
-			log.info("Pit not allowed");
-			throw new ValidationException("Pit cannot be moved");
-		}
+		validatePitRange(actualPitMove);
 
 		if (isFirstMove(currentBoard)) {
 			return;
 		}
 
-		// Pit is empty
-		if (currentBoard.getPits()[actualPitMove] == 0) {
+		validatePitEmpty(currentBoard.getPits(), actualPitMove);
+
+		validatePitBelongsToPlayerTurn(actualPitMove, currentBoard.getPitLastMove(), currentBoard.getStonesLastMove());
+	}
+
+	/**
+	 * Validates whether the pit movement belongs to a player's pit.
+	 *
+	 * @param actualPitMove
+	 * @throws ValidationException
+	 */
+	private void validatePitRange(int actualPitMove) throws ValidationException {
+		if (!KalahConstants.VALID_PIT_MOVEMENTS.contains(actualPitMove)) {
+			log.info("Pit not allowed");
+			throw new ValidationException("Pit cannot be moved");
+		}
+	}
+
+	/**
+	 * Validates that the pit to move is not empty
+	 *
+	 * @param pits
+	 * @param actualPitMove
+	 * @throws ValidationException
+	 */
+	private void validatePitEmpty(int[] pits, int actualPitMove) throws ValidationException {
+		if (pits[actualPitMove] == 0) {
 			log.info("Pit is empty");
 			throw new ValidationException("Pit is empty");
 		}
+	}
 
+	/**
+	 * Validates that the current pit movement belongs to the player that is the turn.
+	 *
+	 * @param actualPitMove
+	 * @param pitLastMove
+	 * @param stonesLastMove
+	 * @throws ValidationException
+	 */
+	private void validatePitBelongsToPlayerTurn(int actualPitMove, Integer pitLastMove, Integer stonesLastMove) throws ValidationException {
 		// Is the turn for the actual pit move if player 1 was and ended in his house, only player one is allowed to move
 		boolean isFirstPlayerMovingNow = isFirstPlayerMove(actualPitMove);
-		if (isFirstPlayerMovingNow != isFirstPlayerTurn(currentBoard.getPitLastMove(), currentBoard.getStonesLastMove())) {
-			log.info("It is not the player's turn. Last turn was {} with {} stones and new move is {}", currentBoard.getPitLastMove(),
-					currentBoard.getStonesLastMove(), actualPitMove);
+		if (isFirstPlayerMovingNow != isFirstPlayerTurn(pitLastMove, stonesLastMove)) {
+			log.info("It is not the player's turn. Last turn was {} with {} stones and new move is {}", pitLastMove, stonesLastMove,
+					actualPitMove);
 			throw new ValidationException("It is not the turn for moving that pit");
 		}
 	}
@@ -110,9 +141,8 @@ public class PitServiceImpl implements PitService {
 			lastPit = currentPit;
 		}
 
-		// Check player ended in its own pit and has one stone
 		int latestPit = getNextPit(actualPitMove, actualPitMove, stonesInPit + skippingHouse);
-		if (getPlayerPits(actualPitMove).contains(latestPit) && pits[latestPit] == 1) {
+		if (hasPlayerFinishedInItsEmptyPit(latestPit, actualPitMove, pits)) {
 			// Move player pit stones to house and opponent stones
 			int opponentPit = getOpponentPit(latestPit);
 			pits[getPlayerHouse(actualPitMove)] += pits[latestPit] + pits[opponentPit];
@@ -120,17 +150,39 @@ public class PitServiceImpl implements PitService {
 			pits[opponentPit] = 0;
 		}
 
-		// Next player has all pits empty so game is finished
-		boolean isFirstPlayerNextTurn = isFirstPlayerTurn(actualPitMove, stonesInPit);
-		boolean areEmptyNextPlayerPits = arePlayerPitsEmpty(isFirstPlayerNextTurn, pits);
-		if (areEmptyNextPlayerPits) {
+		if (isGameFinished(actualPitMove, stonesInPit, pits)) {
 			moveAllStonesToHouse(pits);
 			gameService.finish(gameId, pits[KalahConstants.PLAYER_ONE_HOUSE], pits[KalahConstants.PLAYER_TWO_HOUSE]);
 		}
-		
+
 		boardService.addBoardToGame(gameId, actualPitMove, stonesInPit, pits);
 		log.info("Successfully move pit {} for game {}", actualPitMove, gameId);
 		return pits;
+	}
+
+	/**
+	 * Checks whether the player has finished in an empty pit of its own
+	 *
+	 * @param latestPit
+	 * @param actualPitMove
+	 * @param pits
+	 * @return if the player finished adding stones to its own empty pit
+	 */
+	private boolean hasPlayerFinishedInItsEmptyPit(int latestPit, int actualPitMove, int[] pits) {
+		return getPlayerPits(actualPitMove).contains(latestPit) && pits[latestPit] == 1;
+	}
+
+	/**
+	 * Checks if the next player has no more pits to move so the game is finished
+	 *
+	 * @param actualPitMove
+	 * @param stonesInPit
+	 * @param pits
+	 * @return whether the game is finished
+	 */
+	private boolean isGameFinished(int actualPitMove, int stonesInPit, int[] pits) {
+		boolean isFirstPlayerNextTurn = isFirstPlayerTurn(actualPitMove, stonesInPit);
+		return arePlayerPitsEmpty(isFirstPlayerNextTurn, pits);
 	}
 
 	/**
