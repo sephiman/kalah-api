@@ -12,12 +12,12 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 @TestInstance(TestInstance.Lifecycle.PER_METHOD)
 public class UrlServiceImplTest {
-	private UrlService service;
+	private UrlServiceImpl service;
 	private static final int PORT = 80;
 
 	@BeforeEach
 	public void setup() throws UnknownHostException {
-		service = new UrlService(PORT);
+		service = new UrlServiceImpl(PORT);
 	}
 
 	@Test

@@ -35,11 +35,11 @@ public class PitServiceImpl implements PitService {
 		GameDTO game = gameService.getNonFinishedById(gameId);
 		Board currentBoard = boardService.getLatestBoard(gameId);
 
-		validateMove(currentBoard, actualPitMove);
+		validatePitMove(currentBoard, actualPitMove);
 
-		Board board = getMovedBoard(gameId, currentBoard.getPits(), actualPitMove);
+		int[] pits = getNewPits(gameId, currentBoard.getPits(), actualPitMove);
 
-		return GameMapper.getGameStatus(gameId, game.getUrl(), board.getPits());
+		return GameMapper.getGameStatus(gameId, game.getUrl(), pits);
 	}
 
 	/**
@@ -52,7 +52,7 @@ public class PitServiceImpl implements PitService {
 	 * @param actualPitMove
 	 * @throws ValidationException in case the movement is not valid
 	 */
-	private void validateMove(Board currentBoard, int actualPitMove) throws ValidationException {
+	private void validatePitMove(Board currentBoard, int actualPitMove) throws ValidationException {
 		// Pit not valid
 		if (!KalahConstants.VALID_PIT_MOVEMENTS.contains(actualPitMove)) {
 			log.info("Pit not allowed");
@@ -90,7 +90,7 @@ public class PitServiceImpl implements PitService {
 	 * @return the new board
 	 * @throws NotFoundException
 	 */
-	private Board getMovedBoard(long gameId, int[] pits, int actualPitMove) throws NotFoundException {
+	private int[] getNewPits(long gameId, int[] pits, int actualPitMove) throws NotFoundException {
 		int stonesInPit = pits[actualPitMove];
 
 		// Removing stones from first pit
@@ -127,9 +127,10 @@ public class PitServiceImpl implements PitService {
 			moveAllStonesToHouse(pits);
 			gameService.finish(gameId, pits[KalahConstants.PLAYER_ONE_HOUSE], pits[KalahConstants.PLAYER_TWO_HOUSE]);
 		}
-
+		
+		boardService.addBoardToGame(gameId, actualPitMove, stonesInPit, pits);
 		log.info("Successfully move pit {} for game {}", actualPitMove, gameId);
-		return boardService.addBoardToGame(gameId, actualPitMove, stonesInPit, pits);
+		return pits;
 	}
 
 	/**
