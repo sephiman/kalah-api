@@ -1,0 +1,21 @@
+#Database
+spring:
+  datasource:
+    url: jdbc:h2:mem:testdb
+    username: sa
+    password:
+    driverClassName: org.h2.Driver
+  jpa:
+    database-platform: org.hibernate.dialect.H2Dialect
+
+# Error response config
+server:
+  error:
+    include-binding-errors: always
+    include-message: always
+  port: 8080
+
+# Kalah Configuration
+kalah:
+  config:
+    stones: 6
